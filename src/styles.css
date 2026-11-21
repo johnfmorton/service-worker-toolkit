@@ -93,7 +93,8 @@
 	swt-config,
 	swt-warnings,
 	swt-caches,
-	swt-results {
+	swt-results,
+	swt-export {
 		display: block;
 	}
 }
@@ -134,6 +135,82 @@
 		border-color: var(--swt-accent);
 		color: var(--swt-on-accent);
 		font-weight: 600;
+	}
+
+	/* aria-disabled, not disabled: a button that has just moved its own route
+	   to the end must keep keyboard focus. */
+	.swt-btn[aria-disabled='true'] {
+		color: var(--swt-muted);
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.swt-btn[aria-disabled='true']:hover {
+		border-color: var(--swt-line);
+	}
+
+	.swt-btn-icon {
+		padding: 0.25rem;
+		flex: none;
+	}
+
+	/* A field's label sits above it. */
+	.swt-label {
+		display: grid;
+		gap: 0.125rem;
+		color: var(--swt-muted);
+		font-size: var(--swt-text-sm);
+	}
+
+	.swt-label > .swt-field,
+	.swt-label > div {
+		color: var(--swt-fg);
+		font-size: var(--swt-text-base);
+	}
+
+	.swt-legend {
+		margin-bottom: 0.25rem;
+		font-weight: 600;
+	}
+
+	.swt-field:user-invalid {
+		border-color: var(--swt-error);
+	}
+
+	/* The handle a route card is dragged by. */
+	.swt-grip {
+		display: inline-flex;
+		flex: none;
+		padding: 0.25rem 0;
+		color: var(--swt-muted);
+		cursor: grab;
+	}
+
+	.swt-grip:active {
+		cursor: grabbing;
+	}
+
+	/* Where a dragged route would land. */
+	.swt-drop-before {
+		box-shadow: 0 -0.25rem 0 -0.0625rem var(--swt-accent);
+	}
+
+	.swt-drop-after {
+		box-shadow: 0 0.25rem 0 -0.0625rem var(--swt-accent);
+	}
+
+	.swt-dialog {
+		width: min(56rem, calc(100vw - 2rem));
+		margin: auto;
+		padding: 0;
+		border: 1px solid var(--swt-line);
+		border-radius: var(--swt-radius);
+		background: var(--swt-surface);
+		color: var(--swt-fg);
+	}
+
+	.swt-dialog::backdrop {
+		background: color-mix(in srgb, var(--swt-sunken) 70%, transparent);
 	}
 
 	.swt-field {

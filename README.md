@@ -8,7 +8,7 @@ It is a tool, not a library: it does not run in your service worker. (It is unre
 
 ## Status
 
-Early. The simulation engine, its nine warnings and a read-only interface are built: you can load a HAR file and a configuration (JSON) and see the grouped request table, cache summary and warnings. Editing routes in the page and the Workbox export are not built yet. See [PROJECT-PLAN.md](PROJECT-PLAN.md) for the milestones.
+Early, but usable. You can load a HAR file, build an ordered list of routes in the page (add, edit, drag or use the keyboard to reorder, delete), and watch the grouped request table, cache summary and warnings update as you edit. The configuration is saved in your browser and can be saved to or loaded from a JSON file. When the result looks right, “Export service worker” gives you the Workbox source for those routes. See [PROJECT-PLAN.md](PROJECT-PLAN.md) for the milestones.
 
 ## What it warns about
 
@@ -42,6 +42,7 @@ The browser tests need Chromium once: `npx playwright install chromium`.
 
 ```
 src/engine/   HAR parsing, route matching, simulation, warnings (no DOM)
+src/export/   configuration to Workbox service worker source
 src/worker/   runs the engine off the main thread
 src/ui/       Lit components, rendered without shadow DOM
 src/styles.css  design tokens and Tailwind

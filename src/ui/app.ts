@@ -11,6 +11,36 @@ import './warnings-panel.ts'
 
 const message = (error: unknown) => error instanceof Error ? error.message : String(error)
 
+/** Where the configuration is kept between visits. It holds routes and the site origin; never anything from a HAR. */
+const STORAGE_KEY = 'swt.config.v1'
+
+function storedConfig(): Config | null {
+	try {
+		const text = localStorage.getItem(STORAGE_KEY)
+		return text === null ? null : parseConfig(JSON.parse(text))
+	} catch {
+		// Storage is unavailable or holds something unreadable: start fresh.
+		return null
+	}
+}
+
+function storeConfig(config: Config): void {
+	try {
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+	} catch {
+		// Private browsing or a full quota. The page still works; it just forgets.
+	}
+}
+
+function download(name: string, config: Config): void {
+	const url = URL.createObjectURL(new Blob([JSON.stringify(config, null, '\t')], { type: 'application/json' }))
+	const link = document.createElement('a')
+	link.href = url
+	link.download = name
+	link.click()
+	URL.revokeObjectURL(url)
+}
+
 /** The whole app: owns the loaded HAR, the configuration and the latest simulation. */
 export class SwtApp extends LightElement {
 	static override properties = {
@@ -22,6 +52,8 @@ export class SwtApp extends LightElement {
 		_busy: { state: true },
 		_error: { state: true },
 		_focusWarning: { state: true },
+		_example: { state: true },
+		_exportLoaded: { state: true },
 	}
 
 	declare _har: ParsedHar | null
@@ -33,6 +65,10 @@ export class SwtApp extends LightElement {
 	declare _busy: string
 	declare _error: string
 	declare _focusWarning: number | null
+	/** An example is loaded. Its configuration is not saved, so it cannot replace the user's own. */
+	declare _example: boolean
+	/** The export dialog's code has been fetched. It is not part of the first load. */
+	declare _exportLoaded: boolean
 
 	#engine = new EngineClient()
 	/** Counts simulations, so a slow one cannot overwrite a newer result. */
@@ -43,7 +79,9 @@ export class SwtApp extends LightElement {
 		this._har = null
 		this._harName = ''
 		this._page = null
-		this._config = null
+		this._config = storedConfig()
+		this._example = false
+		this._exportLoaded = false
 		this._result = null
 		this._busy = ''
 		this._error = ''
@@ -84,7 +122,29 @@ export class SwtApp extends LightElement {
 
 	#loadHar(file: File): Promise<void> {
 		return this.#task(`Reading ${file.name}`, async () => {
-			await this.#useHar(await this.#engine.loadFile(file), file.name)
+			const loaded = await this.#engine.loadFile(file)
+			// Leaving an example: back to the user's own configuration, if there is one.
+			if (this._example) {
+				this._example = false
+				this._config = storedConfig()
+			}
+			await this.#useHar(loaded, file.name)
+		})
+	}
+
+	/** Takes an edited or loaded configuration: simulate it, and keep it for next time. */
+	async #setConfig(config: Config): Promise<void> {
+		this._config = config
+		if (!this._example) storeConfig(config)
+		await this.#simulate()
+	}
+
+	#export(): Promise<void> {
+		return this.#task('Preparing the export', async () => {
+			await import('./export-dialog.ts')
+			this._exportLoaded = true
+			await this.updateComplete
+			this.querySelector<HTMLElement & { show: () => void }>('swt-export')?.show()
 		})
 	}
 
@@ -102,8 +162,8 @@ export class SwtApp extends LightElement {
 			} catch {
 				throw new Error(`${file.name} is not valid JSON.`)
 			}
-			this._config = parseConfig(json)
-			await this.#simulate()
+			this._example = false
+			await this.#setConfig(parseConfig(json))
 		})
 	}
 
@@ -111,6 +171,7 @@ export class SwtApp extends LightElement {
 		return this.#task('Loading the example', async () => {
 			// Fetched only on demand: the example is not part of the page's first load.
 			const example = (await import('../../fixtures/site-before-after.ts'))[which]
+			this._example = true
 			this._config = example.config
 			await this.#useHar(await this.#engine.loadJson(example.har), which === 'before' ? 'Example: a worker with seven bugs' : 'Example: the same worker, fixed')
 		})
@@ -155,12 +216,7 @@ export class SwtApp extends LightElement {
 	#downloadExampleConfig(): Promise<void> {
 		return this.#task('Preparing the example configuration', async () => {
 			const { after } = await import('../../fixtures/site-before-after.ts')
-			const url = URL.createObjectURL(new Blob([JSON.stringify(after.config, null, '\t')], { type: 'application/json' }))
-			const link = document.createElement('a')
-			link.href = url
-			link.download = 'example-configuration.json'
-			link.click()
-			URL.revokeObjectURL(url)
+			download('example-configuration.json', after.config)
 		})
 	}
 
@@ -280,6 +336,8 @@ export class SwtApp extends LightElement {
 					${this.#status()}
 					${this.#filePicker('Load another HAR', '.har,.json,application/json', (file) => this.#loadHar(file))}
 					${this.#filePicker('Load configuration', '.json,application/json', (file) => this.#loadConfig(file))}
+					<button type="button" class="swt-btn" @click=${() => download('service-worker-configuration.json', config)}>Save configuration</button>
+					<button type="button" class="swt-btn swt-btn-primary" @click=${() => this.#export()}>Export service worker</button>
 				</header>
 
 				${har.pages.length > 1
@@ -317,8 +375,22 @@ export class SwtApp extends LightElement {
 					</p>`
 					: nothing}
 
-				<div class="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:flex-1 lg:min-h-0">
-					<swt-config class="p-3 border-b border-line lg:border-b-0 lg:border-r lg:overflow-auto" .config=${config} .result=${result}></swt-config>
+				${this._example
+					? html`<p class="px-3 py-1.5 border-b border-line bg-sunken">
+						This is an example. You can change its routes to see what happens, but the changes are not kept. Your own configuration is saved in this browser as you edit it.
+					</p>`
+					: nothing}
+
+				${this._exportLoaded ? html`<swt-export .config=${config}></swt-export>` : nothing}
+
+				<div class="lg:grid lg:grid-cols-[24rem_minmax(0,1fr)] lg:flex-1 lg:min-h-0">
+					<swt-config
+						class="p-3 border-b border-line lg:border-b-0 lg:border-r lg:overflow-auto"
+						.config=${config}
+						.result=${result}
+						.harOrigin=${har.origin}
+						@config-change=${(event: CustomEvent<Config>) => { void this.#setConfig(event.detail) }}
+					></swt-config>
 					${result
 						? html`<div class="flex flex-col min-w-0 lg:min-h-0" @select-warning=${(event: CustomEvent<number | null>) => { this._focusWarning = event.detail }}>
 							<swt-warnings class="border-b border-line" .warnings=${result.warnings} .config=${config} .selected=${this._focusWarning}></swt-warnings>

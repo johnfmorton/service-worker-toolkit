@@ -31,6 +31,18 @@ export function warningIcon(): TemplateResult {
 	return html`<svg class="swt-icon text-warn" viewBox="0 0 16 16" aria-hidden="true">${svg`<path d="M8 1.2 15.4 14H.6L8 1.2Zm-.8 4.6v4h1.6v-4H7.2Zm0 5.2v1.6h1.6V11H7.2Z"/>`}</svg>`
 }
 
+const ICONS = {
+	right: 'M5.5 3v10l6-5-6-5Z',
+	down: 'M3 5.5h10L8 11.5 3 5.5Z',
+	up: 'M3 10.5h10L8 4.5l-5 6Z',
+	close: 'M4.1 3 8 6.9 11.9 3 13 4.1 9.1 8l3.9 3.9-1.1 1.1L8 9.1 4.1 13 3 11.9 6.9 8 3 4.1 4.1 3Z',
+	grip: 'M5 2.5h2.2v2.2H5V2.5Zm3.8 0H11v2.2H8.8V2.5ZM5 6.9h2.2v2.2H5V6.9Zm3.8 0H11v2.2H8.8V6.9ZM5 11.3h2.2v2.2H5v-2.2Zm3.8 0H11v2.2H8.8v-2.2Z',
+} as const
+
+export function icon(name: keyof typeof ICONS): TemplateResult {
+	return html`<svg class="swt-icon" viewBox="0 0 16 16" aria-hidden="true">${svg`<path d=${ICONS[name]}/>`}</svg>`
+}
+
 export function chevron(open: boolean): TemplateResult {
 	return html`<svg class="swt-icon text-muted" viewBox="0 0 16 16" aria-hidden="true">${svg`<path d=${open ? 'M3 5.5h10L8 11.5 3 5.5Z' : 'M5.5 3v10l6-5-6-5Z'}/>`}</svg>`
 }

@@ -19,6 +19,14 @@ export default tseslint.config(
 		},
 	},
 	{
+		// The exporter is pure too: a config in, a string out.
+		files: ['src/export/**'],
+		rules: {
+			'no-restricted-globals': ['error', 'window', 'document', 'navigator', 'location', 'localStorage', 'sessionStorage', 'fetch', 'self'],
+			'no-restricted-imports': ['error', { patterns: ['workbox-*', '**/ui/**'] }],
+		},
+	},
+	{
 		// The engine must run in a page, a Web Worker, Node or CI alike:
 		// no DOM, no storage, no network.
 		files: ['src/engine/**'],
