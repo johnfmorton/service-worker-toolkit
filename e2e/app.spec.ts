@@ -190,3 +190,21 @@ test('the service worker source can be exported', async ({ page, context }) => {
 	await expect(dialog).toBeHidden()
 	expect(errors).toEqual([])
 })
+
+test('the two cache options can be set in the editor and reach the export', async ({ page }) => {
+	await page.goto('/')
+	await page.getByLabel('Choose a HAR file').setInputFiles(asFile('site.har', before.har))
+	await page.getByRole('button', { name: 'Add a route' }).click()
+
+	// Purging is part of expiry, so it waits for a limit.
+	const purge = page.getByLabel(/Empty this cache if storage runs out/)
+	await expect(purge).toBeDisabled()
+	await page.getByLabel('Most entries').fill('20')
+	await purge.check()
+	await page.getByLabel('Ignore the Vary header when matching cached responses').check()
+
+	await page.getByRole('button', { name: 'Export service worker' }).click()
+	const dialog = page.getByRole('dialog', { name: 'Service worker source' })
+	await expect(dialog).toContainText('matchOptions: { ignoreVary: true },')
+	await expect(dialog).toContainText('purgeOnQuotaError: true,')
+})

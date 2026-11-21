@@ -53,7 +53,7 @@ const pageHandler: Handler & { name: string } = {
 	name: 'Pages',
 	strategy: 'network-first',
 	cacheName: 'html-cache',
-	options: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60, cacheableStatuses: [200] },
+	options: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60, purgeOnQuotaError: true, cacheableStatuses: [200] },
 }
 
 export const before: Scenario = {
@@ -74,7 +74,7 @@ export const before: Scenario = {
 				conditions: [{ type: 'origin', value: CDN }],
 				strategy: 'cache-first',
 				cacheName: 'static-cache',
-				options: { fetchMode: 'no-cors', maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60, cacheableStatuses: [0, 200] },
+				options: { fetchMode: 'no-cors', ignoreVary: true, maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60, cacheableStatuses: [0, 200] },
 			}),
 		],
 		defaultHandler: { strategy: 'network-only', cacheName: '' },
@@ -91,7 +91,7 @@ export const after: Scenario = {
 				conditions: [{ type: 'origin', value: CDN }, { type: 'destination', value: ['image'] }],
 				strategy: 'cache-first',
 				cacheName: 'static-cache',
-				options: { fetchMode: 'cors', fetchCredentials: 'omit', maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60, cacheableStatuses: [200] },
+				options: { fetchMode: 'cors', fetchCredentials: 'omit', ignoreVary: true, maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true, cacheableStatuses: [200] },
 			}),
 			route('assets', {
 				name: 'Build files',
@@ -102,7 +102,7 @@ export const after: Scenario = {
 				],
 				strategy: 'cache-first',
 				cacheName: 'asset-cache',
-				options: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60, cacheableStatuses: [200] },
+				options: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true, cacheableStatuses: [200] },
 			}),
 			route('pages', {
 				...pageHandler,

@@ -108,6 +108,7 @@ function strategy(handler: Handler, used: Set<string>): string[] {
 		options.fetchCredentials ? `credentials: ${quote(options.fetchCredentials)}` : '',
 	].filter((part) => part !== '')
 	if (fetchOptions.length > 0) body.push(`fetchOptions: { ${fetchOptions.join(', ')} },`)
+	if (caches && options.ignoreVary) body.push('matchOptions: { ignoreVary: true },')
 
 	const plugins: string[] = []
 	if (caches && (options.maxEntries !== undefined || options.maxAgeSeconds !== undefined)) {
@@ -117,6 +118,7 @@ function strategy(handler: Handler, used: Set<string>): string[] {
 		plugins.push('new ExpirationPlugin({')
 		if (options.maxEntries !== undefined) plugins.push(`\tmaxEntries: ${options.maxEntries},`)
 		if (options.maxAgeSeconds !== undefined) plugins.push(`\tmaxAgeSeconds: ${options.maxAgeSeconds}, // ${duration(options.maxAgeSeconds)}`)
+		if (options.purgeOnQuotaError) plugins.push('\tpurgeOnQuotaError: true,')
 		plugins.push('}),')
 	}
 	if (caches && options.cacheableStatuses !== undefined) {

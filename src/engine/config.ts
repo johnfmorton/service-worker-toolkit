@@ -93,6 +93,11 @@ function readOptions(value: unknown, where: string, problems: string[]): Handler
 		if (isCount(value[key])) options[key] = value[key]
 		else problems.push(`${where} ${key} must be a whole number.`)
 	}
+	// Recorded only when on: off is the same as absent.
+	for (const key of ['purgeOnQuotaError', 'ignoreVary'] as const) {
+		if (value[key] === true) options[key] = true
+		else if (value[key] !== undefined && value[key] !== false) problems.push(`${where} ${key} must be true or false.`)
+	}
 	return options
 }
 

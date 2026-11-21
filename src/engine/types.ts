@@ -115,6 +115,10 @@ export interface HandlerOptions {
 	cacheableStatuses?: number[]
 	maxEntries?: number
 	maxAgeSeconds?: number
+	/** Delete this cache if the browser runs out of storage. Needs an entry limit or a maximum age. */
+	purgeOnQuotaError?: boolean
+	/** Match a cached response even when its Vary header would rule it out. */
+	ignoreVary?: boolean
 }
 
 export interface Handler {

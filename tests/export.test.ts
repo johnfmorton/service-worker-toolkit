@@ -94,10 +94,12 @@ registerRoute(
 	new CacheFirst({
 		cacheName: 'static-cache',
 		fetchOptions: { mode: 'cors', credentials: 'omit' },
+		matchOptions: { ignoreVary: true },
 		plugins: [
 			new ExpirationPlugin({
 				maxEntries: 50,
 				maxAgeSeconds: 2592000, // 30 days
+				purgeOnQuotaError: true,
 			}),
 			new CacheableResponsePlugin({ statuses: [200] }),
 		],
@@ -116,6 +118,7 @@ registerRoute(
 			new ExpirationPlugin({
 				maxEntries: 60,
 				maxAgeSeconds: 2592000, // 30 days
+				purgeOnQuotaError: true,
 			}),
 			new CacheableResponsePlugin({ statuses: [200] }),
 		],
@@ -138,6 +141,7 @@ registerRoute(
 			new ExpirationPlugin({
 				maxEntries: 100,
 				maxAgeSeconds: 604800, // 7 days
+				purgeOnQuotaError: true,
 			}),
 			new CacheableResponsePlugin({ statuses: [200] }),
 		],
@@ -163,6 +167,16 @@ setDefaultHandler(new NetworkOnly())
 	cleanURLs: false,
 })`)
 		expect(load(source).precached).toHaveLength(2)
+	})
+
+	it('leaves out purgeOnQuotaError when nothing would expire, and both options on a route with no cache', () => {
+		const options = { purgeOnQuotaError: true, ignoreVary: true }
+		const cached = generateWorkbox(config({ routes: [route('r', { strategy: 'cache-first', cacheName: 'c', options })] }))
+		expect(cached).toContain('matchOptions: { ignoreVary: true },')
+		expect(cached).not.toContain('ExpirationPlugin')
+		const uncached = generateWorkbox(config({ routes: [route('r', { strategy: 'network-only', cacheName: '', options: { ...options, maxEntries: 5 } })] }))
+		expect(uncached).toContain('new NetworkOnly(),')
+		expect(uncached).not.toMatch(/ignoreVary|purgeOnQuotaError/)
 	})
 
 	it('imports only what it uses, and nothing for an empty configuration', () => {

@@ -86,6 +86,8 @@ export function describeOptions(handler: Handler): string[] {
 		options.cacheableStatuses ? `caches status ${options.cacheableStatuses.join(', ')}` : '',
 		options.maxEntries === undefined ? '' : `at most ${options.maxEntries} entries`,
 		options.maxAgeSeconds === undefined ? '' : `kept ${duration(options.maxAgeSeconds)}`,
+		options.purgeOnQuotaError ? 'emptied if storage runs out' : '',
+		options.ignoreVary ? 'ignores Vary' : '',
 	].filter((phrase) => phrase !== '')
 }
 

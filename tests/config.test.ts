@@ -25,6 +25,13 @@ describe('parseConfig', () => {
 		expect(config.defaultHandler).toBeNull()
 	})
 
+	it('keeps the two on/off options only when they are on', () => {
+		const read = (options: unknown) => parseConfig({ version: 1, origin: 'https://example.com', routes: [{ strategy: 'cache-first', options }] }).routes[0]?.options
+		expect(read({ purgeOnQuotaError: true, ignoreVary: true })).toEqual({ purgeOnQuotaError: true, ignoreVary: true })
+		expect(read({ purgeOnQuotaError: false, ignoreVary: false })).toEqual({})
+		expect(() => read({ ignoreVary: 'yes' })).toThrow(/ignoreVary must be true or false/)
+	})
+
 	it('drops fields it does not know', () => {
 		const config = parseConfig({ version: 1, origin: 'https://example.com', secret: 'x', routes: [{ strategy: 'cache-first', extra: 1 }] })
 		expect(JSON.stringify(config)).not.toMatch(/secret|extra/)

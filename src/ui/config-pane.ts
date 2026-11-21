@@ -212,6 +212,8 @@ export class SwtConfig extends LightElement {
 		const options = handler.options ?? {}
 		const unit = ageUnit(options.maxAgeSeconds)
 		const caches = handler.strategy !== 'network-only'
+		// Purging belongs to expiry, which only exists once there is a limit.
+		const limited = options.maxEntries !== undefined || options.maxAgeSeconds !== undefined
 		const setAge = (event: Event) => {
 			const row = (event.target as HTMLElement).closest('.swt-age')
 			const amount = row?.querySelector('input')?.valueAsNumber ?? NaN
@@ -285,7 +287,24 @@ export class SwtConfig extends LightElement {
 									${AGE_UNITS.map((u) => html`<option value=${u.name} ?selected=${u === unit}>${u.name}</option>`)}
 								</select>
 							</div>
-						</div>`
+						</div>
+						<label class="flex items-start gap-1.5 sm:col-span-2 ${limited ? '' : 'text-muted'}">
+							<input
+								type="checkbox"
+								class="mt-0.5"
+								.checked=${options.purgeOnQuotaError === true}
+								?disabled=${!limited}
+								@change=${(event: Event) => change((h) => this.#setOption(h, 'purgeOnQuotaError', (event.target as HTMLInputElement).checked || undefined))}
+							><span>Empty this cache if storage runs out${limited ? '' : ' (needs an entry limit or a time limit)'}</span>
+						</label>
+						<label class="flex items-start gap-1.5 sm:col-span-2">
+							<input
+								type="checkbox"
+								class="mt-0.5"
+								.checked=${options.ignoreVary === true}
+								@change=${(event: Event) => change((h) => this.#setOption(h, 'ignoreVary', (event.target as HTMLInputElement).checked || undefined))}
+							><span>Ignore the Vary header when matching cached responses</span>
+						</label>`
 					: nothing}
 			</fieldset>`
 	}
