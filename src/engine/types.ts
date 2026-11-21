@@ -20,15 +20,17 @@ export type Mode = 'navigate' | 'cors' | 'no-cors' | 'same-origin' | 'websocket'
  * Where a request property came from. Anything but 'header' is a guess the UI
  * should show as inferred and let the user correct.
  */
-export type Provenance = 'header' | 'resource-type' | 'content-type' | 'inferred' | 'unknown'
+export type Provenance = 'header' | 'resource-type' | 'content-type' | 'worker-fetch' | 'inferred' | 'unknown'
 
 /**
  * One HAR entry, reduced to the fields the simulation needs. Cookies,
  * authorisation headers and bodies are never copied into this shape.
  */
 export interface SimRequest {
-	/** Position in the HAR, which is load order. */
+	/** Position in ParsedHar.requests, which is load order. */
 	index: number
+	/** Which page load it belongs to: an index into ParsedHar.pages. */
+	page: number
 	url: string
 	method: string
 	status: number
@@ -42,6 +44,8 @@ export interface SimRequest {
 	destinationSource: Provenance
 	mode: Mode
 	modeSource: Provenance
+	/** A service worker that was already installed answered this request when the HAR was recorded. */
+	viaWorker: boolean
 	/** The request carried a Range header. */
 	hasRange: boolean
 	/** The request was a browser's fetch of a service worker script. */
@@ -50,14 +54,25 @@ export interface SimRequest {
 	cacheHeaders: Record<string, string>
 }
 
+export interface HarPage {
+	title: string
+	requests: number
+	/** How many of those requests a recorded service worker answered. */
+	viaWorker: number
+}
+
 export interface ParsedHar {
 	/** The page the HAR was recorded on, when it can be worked out. */
 	pageUrl: string | null
 	/** Origin of that page: the suggested value for the site's own origin. */
 	origin: string | null
 	requests: SimRequest[]
+	/** The page loads recorded in the HAR. Usually one; more when the log was kept across reloads. */
+	pages: HarPage[]
 	/** Entries dropped because they had no usable URL. */
 	skipped: number
+	/** A recorded service worker's own fetches, folded into the requests they answered. */
+	workerFetches: number
 }
 
 // ---------------------------------------------------------------------------

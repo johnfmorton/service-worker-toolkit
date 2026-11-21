@@ -5,3 +5,6 @@ coverage/
 !fixtures/**/*.har
 .DS_Store
 .env*
+.playwright-mcp/
+test-results/
+playwright-report/

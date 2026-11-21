@@ -24,6 +24,10 @@ export interface RequestSpec {
 	responseHeaders?: Record<string, string>
 	/** Chrome's _resourceType, for entries that lack Sec-Fetch headers. */
 	resourceType?: string
+	/** Recorded as answered by a service worker that was already installed. */
+	viaWorker?: boolean
+	/** Id of the page load the entry belongs to, when the HAR holds several. */
+	pageref?: string
 }
 
 export interface Scenario {
@@ -78,18 +82,21 @@ export function buildHar(pageUrl: string, specs: RequestSpec[]): unknown {
 				redirectURL: '',
 				headersSize: -1,
 				bodySize: size,
-				_transferSize: size + 300,
+				_transferSize: spec.viaWorker ? 0 : size + 300,
+				...(spec.viaWorker ? { _fetchedViaServiceWorker: true } : {}),
 			},
 			cache: {},
 			timings: { send: 0, wait: 5, receive: 5 },
 			...(spec.resourceType ? { _resourceType: spec.resourceType } : {}),
+			...(spec.pageref ? { pageref: spec.pageref } : {}),
 		}
 	})
+	const pageIds = [...new Set(specs.map((spec) => spec.pageref).filter((id) => id !== undefined))]
 	return {
 		log: {
 			version: '1.2',
 			creator: { name: 'service-worker-toolkit fixtures', version: '1' },
-			pages: [{ startedDateTime: '2026-11-21T12:00:00.000Z', id: 'page_1', title: pageUrl, pageTimings: {} }],
+			pages: (pageIds.length > 0 ? pageIds : ['page_1']).map((id) => ({ startedDateTime: '2026-11-21T12:00:00.000Z', id, title: pageUrl, pageTimings: {} })),
 			entries,
 		},
 	}

@@ -8,7 +8,7 @@ It is a tool, not a library: it does not run in your service worker. (It is unre
 
 ## Status
 
-Early. The simulation engine and its nine warnings are built and tested. The web interface and the Workbox export are not built yet. See [PROJECT-PLAN.md](PROJECT-PLAN.md) for the milestones.
+Early. The simulation engine, its nine warnings and a read-only interface are built: you can load a HAR file and a configuration (JSON) and see the grouped request table, cache summary and warnings. Editing routes in the page and the Workbox export are not built yet. See [PROJECT-PLAN.md](PROJECT-PLAN.md) for the milestones.
 
 ## What it warns about
 
@@ -30,16 +30,24 @@ Requires Node 22.12 or later.
 
 ```sh
 npm install
-npm run check   # typecheck, lint and tests
-npm test        # tests only
+npm run dev        # the app, at http://127.0.0.1:5180
+npm run check      # typecheck, lint and unit tests
+npm run test:e2e   # browser tests against the production build
+npm run build      # static site in dist/
 ```
+
+The browser tests need Chromium once: `npx playwright install chromium`.
 
 ## Layout
 
 ```
 src/engine/   HAR parsing, route matching, simulation, warnings (no DOM)
+src/worker/   runs the engine off the main thread
+src/ui/       Lit components, rendered without shadow DOM
+src/styles.css  design tokens and Tailwind
 fixtures/     hand-written requests and configs, one pair per warning
-tests/
+tests/        unit tests
+e2e/          browser tests
 ```
 
 The engine is one pure function, `simulate(parseHar(har), config)`. Its concepts (routes, strategies, caches) are not tied to a library; the Workbox behaviour it models is confined to `src/engine/defaults.ts`.

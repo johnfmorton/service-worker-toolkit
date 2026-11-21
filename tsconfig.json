@@ -16,5 +16,5 @@
 		"allowImportingTsExtensions": true,
 		"types": []
 	},
-	"include": ["src", "fixtures", "tests", "*.ts", "*.js"]
+	"include": ["src", "fixtures", "tests", "e2e", "*.ts", "*.js"]
 }

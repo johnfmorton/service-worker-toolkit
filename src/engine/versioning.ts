@@ -23,9 +23,13 @@ export function hasContentHash(pathname: string): boolean {
 	const dot = file.lastIndexOf('.')
 	const stem = dot > 0 ? file.slice(0, dot) : file
 	if (stem.split(/[.\-_]/).some(isHashLike)) return true
-	// Base64url hashes can contain '-' and '_' themselves: 'index-B-x2_9Qz.js'.
+	// Bundlers end the name with a separator and a short base64url hash, which
+	// often has no digit and may contain '-' or '_': 'alpinejs-DLuZkmyn.js',
+	// 'lit-html-D-iErybV.js', '@scope-BE_KOGS8.js'. Eight characters there are
+	// a hash unless they read as a word ('-Document') or a word and a number.
 	const tail = /[.-]([A-Za-z0-9_-]{8})$/.exec(stem)?.[1]
-	return tail !== undefined && /\d/.test(tail) && /[A-Z]/.test(tail) && /[a-z]/.test(tail)
+	if (tail === undefined || /^[A-Za-z]?[a-z]*\d{0,2}$/.test(tail) || /^[a-z-]+$/.test(tail)) return false
+	return /\d/.test(tail) || /[A-Z]/.test(tail.slice(1)) || tail.includes('_')
 }
 
 /** True when the URL is versioned by a content hash, a version number or a version query. */

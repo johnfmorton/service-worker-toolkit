@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseHar, parseHarText } from '../src/engine/index.ts'
+import { bestPage, parseHar, parseHarText, selectPage } from '../src/engine/index.ts'
 import { CDN, ORIGIN, SECRET_BODY, buildHar, page } from '../fixtures/har-builder.ts'
 
 describe('parseHar', () => {
@@ -99,5 +99,80 @@ describe('parseHar', () => {
 		expect(() => parseHar({})).toThrow(/Not a HAR file/)
 		expect(() => parseHar(null)).toThrow(/Not a HAR file/)
 		expect(() => parseHarText('<html>')).toThrow(/not valid JSON/)
+	})
+
+	describe('a HAR recorded while a service worker was active', () => {
+		const har = parseHar(buildHar(`${ORIGIN}/`, [
+			// As the page made them: answered by the worker, no Sec-Fetch headers, no transfer size.
+			{ url: `${ORIGIN}/`, resourceType: 'document', type: 'text/html', viaWorker: true, size: 18_000 },
+			{ url: `${CDN}/a.jpg`, resourceType: 'image', type: 'image/jpeg', viaWorker: true, size: 500 },
+			{ url: `${ORIGIN}/cached.css`, resourceType: 'stylesheet', type: 'text/css', viaWorker: true },
+			// The worker's own fetches of the first two.
+			{ url: `${ORIGIN}/`, resourceType: 'fetch', dest: 'empty', mode: 'navigate', type: 'text/html', size: 18_000 },
+			{ url: `${CDN}/a.jpg`, resourceType: 'fetch', dest: 'empty', mode: 'no-cors', type: 'image/jpeg', size: 500, responseHeaders: { 'Cache-Control': 'max-age=60' } },
+			// A fetch() the page made itself, which no worker answered.
+			{ url: `${ORIGIN}/api`, resourceType: 'fetch', dest: 'empty', mode: 'cors', type: 'application/json' },
+		]))
+
+		it('folds each worker fetch into the request it answered', () => {
+			expect(har.workerFetches).toBe(2)
+			expect(har.requests.map((r) => new URL(r.url).pathname)).toEqual(['/', '/a.jpg', '/cached.css', '/api'])
+			expect(har.requests.map((r) => r.index)).toEqual([0, 1, 2, 3])
+			expect(har.requests[1]).toMatchObject({
+				destination: 'image',
+				destinationSource: 'resource-type',
+				mode: 'no-cors',
+				modeSource: 'worker-fetch',
+				transferSize: 800,
+				viaWorker: true,
+				cacheHeaders: { 'cache-control': 'max-age=60' },
+			})
+			expect(har.requests[0]).toMatchObject({ destination: 'document', mode: 'navigate', modeSource: 'worker-fetch' })
+		})
+
+		it('keeps a request the worker answered from its cache, with what little is known', () => {
+			expect(har.requests[2]).toMatchObject({ destination: 'style', mode: 'unknown', transferSize: 0, viaWorker: true })
+		})
+
+		it('leaves the page\'s own fetches alone', () => {
+			expect(har.requests[3]).toMatchObject({ destination: 'empty', mode: 'cors', modeSource: 'header', viaWorker: false })
+		})
+	})
+
+	describe('a HAR holding several page loads', () => {
+		const har = parseHar(buildHar(`${ORIGIN}/`, [
+			{ ...page('/first'), pageref: 'page_1' },
+			{ url: `${ORIGIN}/a.js`, dest: 'script', mode: 'cors', pageref: 'page_1' },
+			{ url: `${ORIGIN}/beacon`, dest: 'empty', mode: 'cors' },
+			{ ...page('/second'), pageref: 'page_2' },
+			{ url: `${ORIGIN}/b.js`, dest: 'script', mode: 'cors', pageref: 'page_2' },
+		]))
+
+		it('lists the pages and assigns every request to one', () => {
+			expect(har.pages).toEqual([
+				{ title: `${ORIGIN}/`, requests: 3, viaWorker: 0 },
+				{ title: `${ORIGIN}/`, requests: 2, viaWorker: 0 },
+			])
+			// An entry with no page of its own stays with the load it followed.
+			expect(har.requests.map((r) => r.page)).toEqual([0, 0, 0, 1, 1])
+		})
+
+		it('prefers the latest load recorded without a service worker', () => {
+			expect(bestPage(har)).toBe(1)
+			const loads = (viaWorker: boolean[]) => parseHar(buildHar(`${ORIGIN}/`, viaWorker.map((via, i) =>
+				({ url: `${ORIGIN}/${i}`, resourceType: 'document', type: 'text/html', viaWorker: via, pageref: `page_${i}` }))))
+			expect(bestPage(loads([true, false, true]))).toBe(1)
+			expect(bestPage(loads([true, true]))).toBe(1)
+			expect(bestPage(loads([false]))).toBeNull()
+		})
+
+		it('can be narrowed to one page load', () => {
+			const second = selectPage(har, 1)
+			expect(second.pageUrl).toBe(`${ORIGIN}/second`)
+			expect(second.requests.map((r) => [r.index, new URL(r.url).pathname])).toEqual([[0, '/second'], [1, '/b.js']])
+			expect(second.pages).toEqual(har.pages)
+			// The original is untouched.
+			expect(har.requests[3]?.index).toBe(3)
+		})
 	})
 })
